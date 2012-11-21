@@ -1,7 +1,102 @@
+ELP_WORLD = "dlvc/world.dlvc"
+ELP_REPRESENTANT = "dlvc/representant.dlvc"
+ELP_BASESTATION = "dlvc/basestation.dlvc"
+
 class Agent < Base
 
-  ELP_WORLD = "dlvc/world.dlvc"
-  ELP_REPRESENTANT = "dlvc/representant.dlvc"
-  ELP_BASESTATION = "dlvc/basestation.dlvc"
+  attr_reader :id
 
+  def initialize(id, agents)
+    @id = id
+    @current_belief_set = Hash.new
+
+    # Create tmp file
+    File.open(world_file, 'w+') do |tmp|
+      tmp.puts("car(car#{id}).")
+      tmp.puts("self(car#{id}).")
+      tmp.puts("coalitionRankOrder(#{0},[car#{id}]).")
+      agents.each do |other|
+        tmp.puts("car(car#{other}).")
+      end
+    end
+  end
+
+  def perceive(timestamp, data)
+    File.open(world_file, 'a') do |tmp|
+      data.each do |type, value|
+        tmp.puts "sensorData(#{timestamp},#{type},#{value})."
+      end
+    end
+  end
+
+  def add_in_range(timestamp, data)
+    File.open(world_file, 'a') do |tmp|
+      tmp.puts "withinDirectRange(#{timestamp},[#{data.map{|e| "car#{e}"}.join(',')}])."
+      tmp.puts "withinCommRange(#{timestamp},[#{data.map{|e| "car#{e}"}.join(',')}])."
+    end
+  end
+
+  def add_belief(name, args)
+    File.open(world_file, 'a') do |tmp|
+      tmp.puts "#{name}(#{args})."
+    end
+  end
+
+  def update_belief_set!
+    @current_belief_set = Solver.get ELP_WORLD, world_file
+  end
+
+  def belief_set
+    return @current_belief_set
+  end
+
+  def intentions
+    intentions = belief_set.delete_if { |name, args| !(%w"sendInfo sendRequest sendAnswer".include? name) }
+  end
+
+  # Performs potential actions against basestation view
+  def check_potential(action)
+    fill_testfile(action)
+    transfer_to_testfile('currentTimeStamp', 'self', 'currentCoalitionSize')
+    result = Solver.get ELP_BASESTATION, view_basestation_file, test_file
+    return result.any?
+  end
+
+  protected
+
+  def fill_testfile(*actions)
+    File.open(test_file, 'w+') do |tmp|
+      actions.each do |action|
+        tmp.puts "#{action}."
+      end
+    end
+  end
+
+  def transfer_to_testfile(*names)
+    File.open(test_file, 'a') do |tmp|
+      names.each do |name|
+        tmp.puts "#{name}(#{belief_set[name][0][0]})." if belief_set.has_key? name
+      end
+    end
+  end
+
+  def world_file
+    return "tmp/world_#{@id}.dlvc"
+  end
+
+  def view_basestation_file
+    return "tmp/view_#{@id}_basestation.dlvc"
+  end
+
+  def view_agent_field(other)
+    return "tmp/view_#{@id}_#{other}.dlvc"
+  end
+
+  def test_file
+    return "tmp/test_#{@id}.dlvc"
+  end
+
+  def ectract_intention(name)
+    return belief_set[name] if belief_set.has_key?(name)
+  end
 end

@@ -2,53 +2,19 @@
 
 % HINTERGRUNDWISSEN UND ALLGEMEINE REGELN
 
-  self(agentSelf).
-  car(agentSelf).
-
   newerTimestamp(T) :- timeStamp(T), timeStamp(T2), T < T2.
   currentTimeStamp(T) :- timeStamp(T), not newerTimestamp(T).
 
+  % Hinzugefügt, weil Comm Daten kein regelmäßiger Input sind
+  newerCommRange(T) :- withinCommRange(T, _), withinCommRange(T2, _), T < T2.
+  currentWithinCommRange(T, List) :- withinCommRange(T, List), not newerCommRange(T).
+
+  newerDirectRange(T) :- withinDirectRange(T, _), withinDirectRange(T2, _), T < T2.
+  currentWithinDirectRange(T, List) :- withinDirectRange(T, List), not newerDirectRange(T).
+
 % FUNKTIONALE KOMPONENTEN
 
-  % Generiertes Wissen
-  timeStamp(13).
-  car(agentOne). car(agentTwo). car(agentThree). car(agentFour). car(agentFive).
-
-  % Bereitschaftsgrad
-  attendanceLevel(6, representative).
-
-  % Rangordnung
-  coalitionRankOrder(7, [agentSelf, agentThree, agentTwo, agentOne]).
-
-  % Mittlere Werte aus Koalitionsdaten
-  coalitionData(13, velocity, 42).
-  coalitionData(13, classRatio, ratio1to0).
-
-  % Situationen und Ereignisse auf Koalitionsebene
-  coalitionSituation(13, weatherCondition, bad).
-  coalitionEvent(13, laneChange, left).
-
 % SENSORDATEN
-
-  % Sensorwerte
-  sensorData(13, class, pkw).
-  sensorData(13, lawEnforcement, false).
-  sensorData(13, velocity, 38).
-  sensorData(13, positionX, 23941).
-  sensorData(13, positionY, 219818).
-  sensorData(13, frontLight, on).
-  sensorData(13, rearLight, on).
-  sensorData(13, fogLight, off).
-  sensorData(13, wiperSpeed, 2).
-  sensorData(13, temperature, 19).
-  sensorData(13, airbag, false).
-
-  % Ereignisse
-  sensorEvent(13, laneChange, left).
-
-  % Kommunikation
-  withinCommRange(13, {agentOne, agentTwo, agentThree, agentFour, agentFive}).
-  withinDirectRange(13, {agentOne, agentTwo}).
 
   % Aktuellste Sensorwerte
   newerData(Type, T) :- sensorData(T, Type, _), sensorData(T2, Type, _), T < T2.
@@ -178,16 +144,16 @@
 
   % Vorgehen bei Verlust des Repräsentanten
     % Variante 1: Verbindung abgebrochen (Höchster Verbleibender ist Repräsentant)
-    lostRepresentative :- currentRepresentative(Representative), withinCommRange(T, List), not #member(Representative, List),
+    lostRepresentative :- currentRepresentative(Representative), currentWithinCommRange(T, List), not #member(Representative, List),
       currentTimeStamp(T), not isRepresentative, not lostCoalition.
 
-    nextCoalitionMember(Agent) :- withinCommRange(T, List), #member(Agent, List), currentRankOrder(RankOrder), #member(Agent, RankOrder),
+    nextCoalitionMember(Agent) :- currentWithinCommRange(T, List), #member(Agent, List), currentRankOrder(RankOrder), #member(Agent, RankOrder),
       lostRepresentative, currentTimeStamp(T), car(Agent).
 
     % Variante 2: Initiierte Trennung (Höchster der abgestoßenen ist Repräsentant)
     lostCoalition :- currentRankOrder(RankOrder), self(Self), not #member(Self, RankOrder).
 
-    nextCoalitionMember(Agent) :- withinCommRange(T, List), #member(Agent, List),
+    nextCoalitionMember(Agent) :- currentWithinCommRange(T, List), #member(Agent, List),
       currentRankOrder(RankOrder), not #member(Agent, RankOrder),
       lastRankOrder(LastRankOrder), #member(Agent, LastRankOrder),
       lostCoalition, currentTimeStamp(T), car(Agent).
@@ -198,12 +164,12 @@
   coalitionTimeStamp(C) :- currentTimeStamp(T), becameRepresentative(R), C = T - R, isRepresentative.
 
     % Anfrage nach direkt erreichbaren Agenten
-    sendRequest(coalition, memberData, withinDirectRange) :- isRepresentative, coalitionIntervall(I), coalitionTimeStamp(T), T >= I,
-      lastSentRequestTime(memberData, withinDirectRange, TL), SUM = I + TL, T >= SUM.
+    sendRequest(coalition, memberData, currentWithinDirectRange) :- isRepresentative, coalitionIntervall(I), coalitionTimeStamp(T), T >= I,
+      lastSentRequestTime(memberData, currentWithinDirectRange, TL), SUM = I + TL, T >= SUM.
 
     % Antwort auf Anfrage
-    sendAnswer(representative, memberData, withinDirectRange, AgentList) :- withinDirectRange(T, AgentList), currentTimeStamp(T),
-      lastReceivedRequestTime(memberData, withinDirectRange, R), lastSentAnswerTime(memberData, withinDirectRange, A), R > A, not lostRepresentative.
+    sendAnswer(representative, memberData, currentWithinDirectRange, AgentList) :- currentWithinDirectRange(T, AgentList), currentTimeStamp(T),
+      lastReceivedRequestTime(memberData, currentWithinDirectRange, R), lastSentAnswerTime(memberData, currentWithinDirectRange, A), R > A, not lostRepresentative.
 
     % Verarbeiten der Antwort: Fusion mit neuen Koalitionen
     maximumCoalitionSize(50).
@@ -338,32 +304,3 @@
 
   inputMemberData(T, Self, Type, Value) :- currentData(Type, Value), self(Self), currentTimeStamp(T).
   inputMemberData(T, Self, attendanceLevel, AttendanceLevel) :- currentAttendanceLevel(AttendanceLevel), self(Self), currentTimeStamp(T).
-
-
-% TEST: EINGEHENDE KOMMUNIKATION
-
-  % Frühere Rangordnung
-  receivedInfo(4, agentThree, coalitionData, rankOrder, [agentThree, agentTwo, agentSelf, agentOne]).
-
-  % Meldungen über aktuelle Reichweite
-  receivedAnswer(13, agentOne, memberData, withinDirectRange, {agentSelf, agentFive}).
-  receivedAnswer(11, agentTwo, memberData, withinDirectRange, {agentSelf, agentFour}).
-  receivedAnswer(10, agentThree, memberData, withinDirectRange, {agentFour}).
-
-  % Meldungen zur Koalitionsverwaltung
-  receivedInfo(17, agentTwo, memberData, velocity, 39).
-  receivedInfo(17, agentTwo, memberData, lawEnforcement, false).
-  receivedInfo(17, agentTwo, memberData, attendanceLevel, member).
-
-  % Antworten zu Situationen
-  receivedAnswer(12, agentThree, situationData, weatherCondition, bad).
-  receivedAnswer(12, agentThree, situationData, trafficCondition, slow).
-
-  % Meldungen über Ereignisse
-  receivedInfo(13, agentOne, eventData, laneChange, left).
-  receivedInfo(9, agentThree, eventData, laneChange, left).
-
-  % Anfragen (Testweise gleicher Zeitpunkt)
-  receivedRequest(12, agentThree, memberData, withinDirectRange).
-  receivedRequest(12, agentThree, situationData, all).
-

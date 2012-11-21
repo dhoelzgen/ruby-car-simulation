@@ -4,3 +4,4 @@ require 'pp'
 DEBUG_MSGS = true
 
 simulation = Simulation.new
+simulation.run!

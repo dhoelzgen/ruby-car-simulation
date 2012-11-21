@@ -8,23 +8,6 @@
 
 %%% USES
 
-  currentTimeStamp(13).
-  self(agentSelf).
-
-  currentCoalitionSize(3).
-
-
-% Input durch (tatsächlich erfolgte) Aktionen
-
-  sentInfo(5, agentSelf, coalitionDefaultData, positionX, 23941).
-  sentInfo(5, agentSelf, coalitionDefaultData, positionY, 219818).
-
-  sentInfo(5, agentSelf, coalitionSituationData, weatherCondition, bad).
-
-  sentInfo(7, agentSelf, coalitionEventData, homogenousLaneChange, left).
-  sentInfo(7, agentSelf, coalitionEventData, positionX, 23941).
-  sentInfo(7, agentSelf, coalitionEventData, positionY, 219818).
-
 % Potentielle Aktionen
 
   sentInfo(T, Self, coalitionDefaultData, type, value) :- performPotentialRepresentantActions, self(Self), currentTimeStamp(T).

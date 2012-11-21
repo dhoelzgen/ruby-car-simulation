@@ -21,7 +21,9 @@ class Environment < Base
 
       # Format: Time / Autoindex / Type / Value
       @canData[data[0]] ||= {}
-      @canData[data[0]][data[1]] = { convertCanTypeToSystem(data[2]) => convertCanDataToSystem(data[3]) }
+      @canData[data[0]][data[1]] ||= {}
+      @canData[data[0]][data[1]][convert_can_type_to_system(data[2])] = convert_can_data_to_system(data[3]).to_i
+
     end
 
     debug "Loaded sensor data"
@@ -36,22 +38,29 @@ class Environment < Base
 
       # Format: Time / Autoindex / Direct Communication
       @comData[data[0]] ||= {}
-      @comData[data[0]][data[1]] = convertCanDataToSystem(data[2]).split(",")
+      @comData[data[0]][data[1]] = convert_can_data_to_system(data[2]).split(",")
     end
 
     debug "Loaded communication data"
   end
 
+  def can_data(step)
+    return @canData[step]
+  end
+
+  def com_data(step)
+    return @comData[step]
+  end
 
   protected
 
-  def convertCanTypeToSystem(type)
+  def convert_can_type_to_system(type)
     return :velocity if type == "CANvelocity"
     return :laneid if type == "CANlaneid"
     return type.to_sym
   end
 
-  def convertCanDataToSystem(data)
+  def convert_can_data_to_system(data)
     return "" unless data
     return data.gsub("\n", "")
   end
