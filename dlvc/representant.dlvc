@@ -1,0 +1,34 @@
+%%% VIEW OTHER AGENT (CURRENT REPRESENTANT) ELP v0.2
+
+% Anmerkung: Eher Beispielhaft - innerhalb der Koalition wird die Geheimniswahrung nicht beachtet
+% - Macht aber trotzdem Sinn: Dadurch dass alle dieses Secret haben gibt's keine Probleme wenn die ganze Koalition nicht ordentlich fährt
+
+%%% SECRETS (Als Contraint modelliert)
+:- driverHasBadDrivingStyle.
+
+% USES
+
+  self(agentSelf).
+  currentTimeStamp(13).
+
+% Input durch Aktionen
+
+  sentAnswer(11, agentSelf, situationData, trafficCondition, slow).
+
+  sentInfo(8, agentSelf, eventData, laneChange, left).
+  sentInfo(9, agentSelf, eventData, laneChange, right).
+
+% Test
+
+  % sentInfo(11, agentSelf, eventData, laneChange, left).
+
+% Hintergrundwissen
+
+  acceptableLaneChangesPerTick(2,13).
+
+  acceptableChanges(Changes) :- acceptableLaneChangesPerTick(Changes, _).
+  acceptableIntervallStart(Start) :- currentTimeStamp(T), acceptableLaneChangesPerTick(_, Ticks), Start = T - Ticks.
+  acceptableIntervallStart(0) :- currentTimeStamp(T), acceptableLaneChangesPerTick(_, Ticks), Ticks > T.
+
+  driverHasBadDrivingStyle :- #count{T : sentInfo(T, Self, eventData, laneChange, _), T >= Start} > Changes,
+    acceptableChanges(Changes), acceptableIntervallStart(Start), self(Self).

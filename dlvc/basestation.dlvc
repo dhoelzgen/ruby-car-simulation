@@ -1,0 +1,66 @@
+%%% VIEW BASE STATION ELP v0.2
+
+% Anmerkung: Wird neben der normalen Funktion auch zum Prüfen potentieller Aktionen (performPotentialRepresentantActions) genutzt
+
+%%% SECRETS (Als Contraint modelliert)
+  :- tripDataOfDriver.
+  :- privateDataOfDriver.
+
+%%% USES
+
+  currentTimeStamp(13).
+  self(agentSelf).
+
+  currentCoalitionSize(3).
+
+
+% Input durch (tatsächlich erfolgte) Aktionen
+
+  sentInfo(5, agentSelf, coalitionDefaultData, positionX, 23941).
+  sentInfo(5, agentSelf, coalitionDefaultData, positionY, 219818).
+
+  sentInfo(5, agentSelf, coalitionSituationData, weatherCondition, bad).
+
+  sentInfo(7, agentSelf, coalitionEventData, homogenousLaneChange, left).
+  sentInfo(7, agentSelf, coalitionEventData, positionX, 23941).
+  sentInfo(7, agentSelf, coalitionEventData, positionY, 219818).
+
+% Potentielle Aktionen
+
+  sentInfo(T, Self, coalitionDefaultData, type, value) :- performPotentialRepresentantActions, self(Self), currentTimeStamp(T).
+  sentInfo(T, Self, coalitionSituationData, type, value) :- performPotentialRepresentantActions, self(Self), currentTimeStamp(T).
+  sentInfo(T, Self, coalitionEventData, type, value) :- performPotentialRepresentantActions, self(Self), currentTimeStamp(T).
+
+% Test
+
+  % performPotentialRepresentantActions.
+
+% Allgemeine Regeln zum Ableiten verfügbarer Informationen
+
+  positionData(T) :- sentInfo(T, _, coalitionDefaultData, _, _).
+  positionData(T) :- sentInfo(T, _, coalitionSituationData, _, _).
+  positionData(T) :- sentInfo(T, _, coalitionEventData, _, _).
+
+  drivingData(T) :- sentInfo(T, _, coalitionSituationData, _, _).
+  drivingData(T) :- sentInfo(T, _, coalitionEventData, homogenousLaneChange, _).
+
+  newerPositionData(T) :- positionData(T), positionData(T2), T2 > T.
+  newerDrivingData(T) :- drivingData(T), drivingData(T2), T2 > T.
+
+% Hintergrundwissen: Häufigkeit - Zum Herleiten von Bewegungsprofilen aus Bekanntgabe der Position
+
+  maximumTicksBetweenPositionsToInferTripData(300).
+  ticksToCountAsOne(20).
+
+  lastPositionData(T) :- positionData(T), not newerPositionData(T).
+
+  ignoreDataAfter(S) :- ticksToCountAsOne(I), positionData(P), S = P - I.
+  ignoreDataAfter(0) :- ticksToCountAsOne(I), positionData(P), I > P.
+
+  tripDataOfDriver :- positionData(T), SUM = T + M, T < I, SUM > L,
+    maximumTicksBetweenPositionsToInferTripData(M), ignoreDataAfter(I), lastPositionData(L).
+
+% Hintergrundwissen: k-Anonymity - Zum Herleiten von Informationen über den Repräsentanten aus übertragenen Situationen
+
+  maximumCoalitionSizeToInferPrivateData(4).
+  privateDataOfDriver :-  currentTimeStamp(T), drivingData(T), currentCoalitionSize(Size), maximumCoalitionSizeToInferPrivateData(Maximum), Size <= Maximum.

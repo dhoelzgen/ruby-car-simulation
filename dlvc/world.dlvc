@@ -1,0 +1,369 @@
+%%% AGENT ELP V0.3
+
+% HINTERGRUNDWISSEN UND ALLGEMEINE REGELN
+
+  self(agentSelf).
+  car(agentSelf).
+
+  newerTimestamp(T) :- timeStamp(T), timeStamp(T2), T < T2.
+  currentTimeStamp(T) :- timeStamp(T), not newerTimestamp(T).
+
+% FUNKTIONALE KOMPONENTEN
+
+  % Generiertes Wissen
+  timeStamp(13).
+  car(agentOne). car(agentTwo). car(agentThree). car(agentFour). car(agentFive).
+
+  % Bereitschaftsgrad
+  attendanceLevel(6, representative).
+
+  % Rangordnung
+  coalitionRankOrder(7, [agentSelf, agentThree, agentTwo, agentOne]).
+
+  % Mittlere Werte aus Koalitionsdaten
+  coalitionData(13, velocity, 42).
+  coalitionData(13, classRatio, ratio1to0).
+
+  % Situationen und Ereignisse auf Koalitionsebene
+  coalitionSituation(13, weatherCondition, bad).
+  coalitionEvent(13, laneChange, left).
+
+% SENSORDATEN
+
+  % Sensorwerte
+  sensorData(13, class, pkw).
+  sensorData(13, lawEnforcement, false).
+  sensorData(13, velocity, 38).
+  sensorData(13, positionX, 23941).
+  sensorData(13, positionY, 219818).
+  sensorData(13, frontLight, on).
+  sensorData(13, rearLight, on).
+  sensorData(13, fogLight, off).
+  sensorData(13, wiperSpeed, 2).
+  sensorData(13, temperature, 19).
+  sensorData(13, airbag, false).
+
+  % Ereignisse
+  sensorEvent(13, laneChange, left).
+
+  % Kommunikation
+  withinCommRange(13, {agentOne, agentTwo, agentThree, agentFour, agentFive}).
+  withinDirectRange(13, {agentOne, agentTwo}).
+
+  % Aktuellste Sensorwerte
+  newerData(Type, T) :- sensorData(T, Type, _), sensorData(T2, Type, _), T < T2.
+  currentData(Type, Value) :- sensorData(T, Type, Value), not newerData(Type, T).
+
+  % Hilfsregeln
+  isLawenforcement :- currentData(lawEnforcement, true).
+
+% KOMMUNIKATION
+
+  % Allgemeine Regeln zum Verarbeiten von Feedback
+  newerSentInfo(T, Domain, Type) :- sentInfo(T, _, Domain, Type, _), sentInfo(T2, _, Domain, Type, _), T < T2.
+  lastSentInfoValue(Domain, Type, Value) :- sentInfo(T, _, Domain, Type, Value), not newerSentInfo(T, Domain, Type).
+  lastSentInfoTime(Domain, Type, T) :- sentInfo(T, _, Domain, Type, _), not newerSentInfo(T, Domain, Type).
+
+  newerSentRequest(T, Domain, Type) :- sentRequest(T, _, Domain, Type), sentRequest(T2, _, Domain, Type), T < T2.
+  lastSentRequestTime(Domain, Type, T) :- sentRequest(T, _, Domain, Type), not newerSentRequest(T, Domain, Type).
+
+  newerSentAnswer(T, Domain, Type) :- sentAnswer(T, _, Domain, Type, _), sentAnswer(T2, _, Domain, Type, _), T < T2.
+  lastSentAnswerValue(Domain, Type, Value) :- sentAnswer(T, _, Domain, Type, Value), not newerSentAnswer(T, Domain, Type).
+  lastSentAnswerTime(Domain, Type, T) :- sentAnswer(T, _, Domain, Type, _), not newerSentAnswer(T, Domain, Type).
+
+
+  % Allgemeine Regeln zum Verarbeiten von eingehenden Nachrichten
+  newerReceivedInfo(T, Domain, Type) :- receivedInfo(T, _, Domain, Type, _), receivedInfo(T2, _, Domain, Type, _), T < T2.
+  newerReceivedInfoBy(T, Domain, Type, Agent) :- receivedInfo(T, Agent, Domain, Type, _), receivedInfo(T2, Agent, Domain, Type, _), T < T2.
+  lastReceivedInfoValue(Domain, Type, Value) :- receivedInfo(T, _, Domain, Type, Value), not newerReceivedInfo(T, Domain, Type).
+  lastReceivedInfoTime(Domain, Type, T) :- receivedInfo(T, _, Domain, Type, _), not newerReceivedInfo(T, Domain, Type).
+
+  newerReceivedRequest(T, Domain, Type) :- receivedRequest(T, _, Domain, Type), receivedRequest(T2, _, Domain, Type), T < T2.
+  lastReceivedRequestBy(Domain, Type, Agent) :- receivedRequest(T, Agent, Domain, Type), not newerReceivedRequest(T, Domain, Type).
+  lastReceivedRequestTime(Domain, Type, T) :- receivedRequest(T, _, Domain, Type), not newerReceivedRequest(T, Domain, Type).
+
+  newerReceivedAnswer(T, Domain, Type) :- receivedAnswer(T, _, Domain, Type, _), receivedAnswer(T2, _, Domain, Type, _), T < T2.
+  lastReceivedAnswerValue(Domain, Type, Value) :- receivedAnswer(T, _, Domain, Type, Value), not newerReceivedAnswer(T, Domain, Type).
+  lastReceivedAnswerBy(Domain, Type, Agent) :- receivedAnswer(T, Agent, Domain, Type, _), not newerReceivedAnswer(T, Domain, Type).
+  lastReceivedAnswerTime(Domain, Type, T) :- receivedAnswer(T, _, Domain, Type, _), not newerReceivedAnswer(T, Domain, Type).
+
+
+  % Erreichbarkeit (Nur nach Ablauf des Intervals nach Datenanfrage gültig)
+  rangeInformationInterval(2).
+  viaDirectRange(Agent) :- withinDirectRange(T2, AgentList), #member(Agent, AgentList),
+    currentTimeStamp(T), car(Agent), rangeInformationInterval(I), D = T - T2, D < I.
+  viaDirectRange(Agent) :- receivedAnswer(T2, DirectAgent, memberData, withinDirectRange, AgentList), #member(Agent, AgentList), #member(DirectAgent, RankOrder),
+    currentTimeStamp(T), car(Agent), viaDirectRange(DirectAgent), currentRankOrder(RankOrder), rangeInformationInterval(I), D = T - T2, D < I.
+  lostDirectRange(Agent) :- car(Agent), #member(Agent, RankOrder), currentRankOrder(RankOrder), not viaDirectRange(Agent).
+
+  % Unterdrücken unnötiger Aktionen des Repräsentanten
+  sentInfo(T, representative, memberData, attendanceLevel, Level) :- currentAttendanceLevel(Level), currentTimeStamp(T), isRepresentative.
+  sentInfo(T, representative, memberData, velocity, Velocity) :- currentData(velocity, Velocity), currentTimeStamp(T), isRepresentative.
+  sentInfo(T, representative, memberData, class, Class) :- currentData(class, Class), currentTimeStamp(T), isRepresentative.
+  sentInfo(T, representative, memberData, lawEnforcement, L) :- currentData(lawEnforcement, L), currentTimeStamp(T), isRepresentative.
+
+  % Initial (zur Vereinfachung der Regeln)
+  sentInfo(0, representative, memberData, attendanceLevel, none).
+  sentInfo(0, representative, memberData, velocity, 0).
+  sentInfo(0, representative, memberData, class, null).
+  sentInfo(0, representative, memberData, lawEnforcement, null).
+  sentInfo(0, coalition, coalitionData, rankOrder, []).
+
+  sentRequest(0, coalition, memberData, withinDirectRange).
+  sentRequest(0, coalition, situationData, all).
+
+  sentAnswer(0, representative, situationData, all, null).
+
+
+% KOALITIONSVERWALTUNG
+
+  % Allgemeine Regeln
+  newerAttendanceLevel(T) :- attendanceLevel(T, _), attendanceLevel(T2, _), T < T2.
+  currentAttendanceLevel(Level) :- attendanceLevel(T, Level), not newerAttendanceLevel(T).
+
+  coalitionRankOrder(T, Order) :- receivedInfo(T, _, coalitionData, rankOrder, Order).
+  newerRankOrder(T) :- coalitionRankOrder(T, _), coalitionRankOrder(T2, _), T < T2.
+  newerRankOrderCountHelper(T, T2) :- coalitionRankOrder(T, _), coalitionRankOrder(T2, _), T < T2.
+  currentRankOrder(RankOrder) :- coalitionRankOrder(T, RankOrder), not newerRankOrder(T).
+  lastChangedRankOrder(T) :- coalitionRankOrder(T, _), not newerRankOrder(T).
+  lastRankOrder(RankOrder) :- coalitionRankOrder(T, RankOrder), #count{CountHelper : newerRankOrderCountHelper(T, CountHelper)} = 1.
+
+  currentCoalitionSize(S) :- #length(RankOrder, S), currentRankOrder(RankOrder).
+
+  isAtLeastMember :- currentAttendanceLevel(member).
+  isAtLeastMember :- currentAttendanceLevel(representative).
+
+
+  % Repräsentant
+  currentRepresentative(Representative) :- #head(RankOrder, Representative), currentRankOrder(RankOrder).
+  lastRepresentative(Representative) :- #head(RankOrder, Representative), lastRankOrder(RankOrder).
+
+  isRepresentative :- currentRepresentative(Representative), self(Self), Representative = Self.
+  becameRepresentative(T) :- isRepresentative, lastRepresentative(LastRepresentative), not LastRepresentative = Self,
+    lastChangedRankOrder(T), self(Self).
+
+  withdrewRepresentative(T) :- currentRepresentative(Representative), lastRepresentative(Self), not Representative = Self,
+    lastChangedRankOrder(T), self(Self).
+
+  newRepresentative(T) :- currentRepresentative(Representative), lastRepresentative(LastRepresentative), not Representative = Self,
+    lastChangedRankOrder(T), self(Self).
+
+
+  % Senden der Mitgliedsbasisdaten an den Repräsentanten
+  memberDataTreshold(velocity, 15).
+
+    % Variante 1: Daten haben sich geändert
+    sendInfo(representative, memberData, velocity, V) :- currentData(velocity, V), lastSentInfoValue(memberData, velocity, V2), memberDataTreshold(velocity, Int),
+      V < Lint, Lint = V2 - Int, not lostRepresentative.
+    sendInfo(representative, memberData, velocity, V) :- currentData(velocity, V), lastSentInfoValue(memberData, velocity, V2), memberDataTreshold(velocity, Int),
+      V > Rint, Rint = V2 + Int, not lostRepresentative.
+    sendInfo(representative, memberData, attendanceLevel, L) :- currentAttendanceLevel(L), not lastSentInfoValue(memberData, attendanceLevel, L), not lostRepresentative.
+    sendInfo(representative, memberData, class, C) :- currentData(class, C), not lastSentInfoValue(memberData, class, C), not lostRepresentative.
+    sendInfo(representative, memberData, lawEnforcement, L) :- currentData(lawEnforcement, L), not lastSentInfoValue(memberData, lawEnforcement, L), not lostRepresentative.
+
+    % Variante 2: Neuer Repräsentant
+    sendInfo(representative, memberData, velocity, V) :- currentData(velocity, V), newRepresentative(T), lastSentInfoTime(memberData, velocity, T2),
+      T > T2, not lostRepresentative.
+    sendInfo(representative, memberData, attendanceLevel, L) :- currentAttendanceLevel(L), newRepresentative(T), lastSentInfoTime(memberData, attendanceLevel, T2),
+      T > T2, not lostRepresentative.
+    sendInfo(representative, memberData, class, C) :- currentData(class, C), newRepresentative(T), lastSentInfoTime(memberData, class, T2),
+      T > T2, not lostRepresentative.
+    sendInfo(representative, memberData, lawEnforcement, L) :- currentData(lawEnforcement, L), newRepresentative(T), lastSentInfoTime(memberData, lawEnforcement, T2),
+      T > T2, not lostRepresentative.
+
+
+  % Neue Rangordnung senden wenn geändert oder Repräsentantenstatus abgegeben
+  sendInfo(all, coalitionData, rankOrder, R) :- currentRankOrder(R), withdrewRepresentative(T), lastSentInfoTime(coalitionData, rankOrder, T2), T > T2.
+  sendInfo(all, coalitionData, rankOrder, R) :- currentRankOrder(R), isRepresentative, newerRankOrder(T), lastSentInfoTime(coalitionData, rankOrder, T2), T > T2.
+
+  % Vorgehen bei Verlust des Repräsentanten
+    % Variante 1: Verbindung abgebrochen (Höchster Verbleibender ist Repräsentant)
+    lostRepresentative :- currentRepresentative(Representative), withinCommRange(T, List), not #member(Representative, List),
+      currentTimeStamp(T), not isRepresentative, not lostCoalition.
+
+    nextCoalitionMember(Agent) :- withinCommRange(T, List), #member(Agent, List), currentRankOrder(RankOrder), #member(Agent, RankOrder),
+      lostRepresentative, currentTimeStamp(T), car(Agent).
+
+    % Variante 2: Initiierte Trennung (Höchster der abgestoßenen ist Repräsentant)
+    lostCoalition :- currentRankOrder(RankOrder), self(Self), not #member(Self, RankOrder).
+
+    nextCoalitionMember(Agent) :- withinCommRange(T, List), #member(Agent, List),
+      currentRankOrder(RankOrder), not #member(Agent, RankOrder),
+      lastRankOrder(LastRankOrder), #member(Agent, LastRankOrder),
+      lostCoalition, currentTimeStamp(T), car(Agent).
+
+
+  % Koalitionsverwaltung
+  coalitionIntervall(20).
+  coalitionTimeStamp(C) :- currentTimeStamp(T), becameRepresentative(R), C = T - R, isRepresentative.
+
+    % Anfrage nach direkt erreichbaren Agenten
+    sendRequest(coalition, memberData, withinDirectRange) :- isRepresentative, coalitionIntervall(I), coalitionTimeStamp(T), T >= I,
+      lastSentRequestTime(memberData, withinDirectRange, TL), SUM = I + TL, T >= SUM.
+
+    % Antwort auf Anfrage
+    sendAnswer(representative, memberData, withinDirectRange, AgentList) :- withinDirectRange(T, AgentList), currentTimeStamp(T),
+      lastReceivedRequestTime(memberData, withinDirectRange, R), lastSentAnswerTime(memberData, withinDirectRange, A), R > A, not lostRepresentative.
+
+    % Verarbeiten der Antwort: Fusion mit neuen Koalitionen
+    maximumCoalitionSize(50).
+    fusionBlockIntervall(3).
+    sendSeparate(fusion).
+
+    blockRequestFusion :- currentTimeStamp(T), fusionBlockIntervall(I), Start = T - I, sentInfo(T2, _, fusion, rankOrder, _), T2 > Start.
+
+    candidateToAskForFusion(Agent) :- viaDirectRange(Agent), currentRankOrder(RankOrder), not #member(Agent, RankOrder),
+      isRepresentative, not blockRequestFusion.
+
+      % Anfrage bei anderen Agenten
+      sendInfo(Agent, fusion, rankOrder, RankOrder) :- candidateToAskForFusion(Agent), currentRankOrder(RankOrder), not blockRequestFusion.
+
+      % Wenn akzeptabel an Koalition weiterleiten
+      acceptFusionWithRankOrder(ResultingOrder) :- receivedInfo(T, _, fusion, rankOrder, ForeignRankOrder), not ResultingSize > MaxSize,
+        #append(CurrentRankOrder, ForeignRankOrder, ResultingOrder), currentRankOrder(CurrentRankOrder), currentTimeStamp(T),
+        maximumCoalitionSize(MaxSize), #length(ResultingOrder, ResultingSize).
+
+      sendInfo(Agent, coalitionData, rankOrder, R) :- acceptFusionWithRankOrder(R), #member(Agent, R), car(Agent).
+
+      % Behandlung von aus Kollision bei Fusionierung resultierenden Verlust des Repräsentanten
+      markAsLostIntervall(SUM) :- coalitionIntervall(I), SUM = I + 10.
+
+      brokeCoalition :- lastReceivedRequestTime(memberData, _, R), currentTimeStamp(T),
+        markAsLostIntervall(I), SUM = R + I, T > SUM, not isRepresentative.
+
+      calculateRankOrder(reset) :- brokeCoalition.
+      nextCoalitionMember(Agent) :- self(Agent), brokeCoalition.
+
+
+  % Trigger: Neuberechnen der Rangordnung
+  defaultRankOrderInterval(5).
+
+  calculateRankOrder(default) :- isRepresentative, not calculateRankOrder(directRange), currentTimeStamp(T), defaultRankOrderInterval(I), #mod(T,I,0).
+
+  calculateRankOrder(filter) :- lostRepresentative.
+  calculateRankOrder(filter) :- lostCoalition.
+
+  calculateRankOrder(directRange) :- lastSentRequestTime(memberData, withinDirectRange, TL),
+    rangeInformationInterval(I), SUM = I + TL, currentTimeStamp(T), T = SUM, not T = I.
+
+
+% SITUATIONEN UND EREIGNISSE: INDIVIDUELL
+
+  temperatureIce(0..3).
+
+  slowSpeed(20..40).
+  stopgoSpeed(10..19).
+  standSpeed(0..9).
+
+  situation(weatherCondition, bad) :- currentData(fogLight, on).
+  situation(weatherCondition, bad) :- currentData(wiperSpeed, Speed), Speed > 1.
+
+  situation(climateCondition, bad) :- currentData(temperature, Temperature), temperatureIce(Temperature), currentData(wiperSpeed, Speed), Speed > 1.
+
+  situation(trafficCondition, slow) :- currentData(velocity, Speed), slowSpeed(Speed).
+  situation(trafficCondition, stopgo) :- currentData(velocity, Speed), stopgoSpeed(Speed).
+  situation(trafficCondition, stand) :- currentData(velocity, Speed), standSpeed(Speed).
+
+  event(laneChange, Direction) :- sensorEvent(T, laneChange, Direction), currentTimeStamp(T).
+  event(accident, accident) :- currentData(airbag, true).
+
+
+% SITUATIONEN UND EREIGNISSE: KOALITION
+
+  % Anfrage nach erkannten Situationen
+  situationAskIntervall(50).
+  situationWaitIntervall(2).
+
+  isActiveRepresentative :- currentAttendanceLevel(representative), isRepresentative.
+
+  sendRequest(coalition, situationData, all) :- isActiveRepresentative, situationAskIntervall(I),
+    lastSentRequestTime(situationData, all, TL), SUM = I + TL, currentTimeStamp(T), T >= SUM.
+
+
+  % Antwort auf Anfrage nach Situationen
+  sendAnswer(representative, situationData, Type, Value) :- lastReceivedRequestBy(situationData, all, Representative), currentRepresentative(Representative),
+    situation(Type, Value), lastReceivedRequestTime(situationData, all, TR), lastSentAnswerTime(situationData, all, TA), TR > TA, isAtLeastMember, not isRepresentative.
+
+
+  % Auswerten von Situationen auf Koalitionsebene (Trigger f. funkt. Komoponente)
+  analyseCoalitionSituation :- timeLastAsked(situationData, TL), situationWaitIntervall(I), SUM = I + TL, currentTimeStamp(T), T = SUM, not T = I.
+
+
+  % Weiterleiten an Basisstation
+  sendInfo(base, coalitionDefaultData, coalitionSize, CoalitionSize) :- currentCoalitionSize(CoalitionSize), analyseCoalitionSituation, isActiveRepresentative.
+  sendInfo(base, coalitionDefaultData, coalitionPositionX, CoalitionPositionX) :- currentData(positionX, CoalitionPositionX), analyseCoalitionSituation, isActiveRepresentative.
+  sendInfo(base, coalitionDefaultData, coalitionPositionY, CoalitionPositionY) :- currentData(positionY, CoalitionPositionY), analyseCoalitionSituation, isActiveRepresentative.
+  sendInfo(base, coalitionDefaultData, coalitionVelocity, Velocity) :- coalitionData(T, velocity, Velocity), currentTimeStamp(T), analyseCoalitionSituation, isActiveRepresentative.
+  sendInfo(base, coalitionDefaultData, classRatio, Ratio) :- coalitionData(T, classRatio, Ratio), currentTimeStamp(T), analyseCoalitionSituation, isActiveRepresentative.
+
+  sendInfo(base, coalitionSituationData, Type, Value) :-  coalitionSituation(T, Type, Value), currentTimeStamp(T), analyseCoalitionSituation, isActiveRepresentative.
+
+
+  % Senden von Ereignissen
+  sendInfo(representative, eventData, Type, Value) :- event(Type, Value), currentTimeStamp(T), isAtLeastMember, not isRepresentative.
+
+
+  % Weiterleiten an Basisstation
+  sendInfo(base, eventData, Type, Value) :- coalitionEvent(T, Type, Value), currentTimeStamp(T). % Kann auch ein passiver Repräsentant
+  sendInfo(base, eventData, coalitionPositionX, CoalitionPositionX) :- currentData(positionX, CoalitionPositionX), sendInfo(base, eventData, _, _).
+  sendInfo(base, eventData, coalitionPositionY, CoalitionPositionY) :- currentData(positionY, CoalitionPositionY), sendInfo(base, eventData, _, _).
+
+
+% PLATZHALTER FÜR KOMMUNIKATION
+
+  communicationTarget(base, base).
+  communicationTarget(representative, Representative) :- currentRepresentative(Representative).
+  communicationTarget(coalition, Agent) :- currentRankOrder(RankOrder), #member(Agent, RankOrder), car(Agent), currentRepresentative(Representative), not Representative = Agent.
+
+  communicationTarget(all, Agent) :- currentRankOrder(RankOrder), #member(Agent, RankOrder), car(Agent), not self(Agent).
+  communicationTarget(all, Agent) :- lastRankOrder(RankOrder), #member(Agent, RankOrder), car(Agent), not self(Agent).
+
+
+% INPUT FÜR FUNKTIONALE KOMPONENTEN
+
+  % Situationen und Ereignisse
+
+  eventObserveIntervall(10).
+
+  inputSituation(Agent, Type, Value) :- receivedAnswer(TA, Agent, situationData, Type, Value), currentTimeStamp(T), situationWaitIntervall(I), MIN = T - I, TA > MIN.
+  inputSituation(Self, Type, Value) :- situation(Type, Value), self(Self).
+
+  inputEvent(T, Agent, Type, Value) :- receivedInfo(TE, Agent, eventData, Type, Value), currentTimeStamp(T), eventObserveIntervall(I), MIN = T - I, TE > MIN.
+  inputEvent(T, Self, Type, Value) :- event(Type, Value), self(Self), currentTimeStamp(T).
+
+  % Rangordnung und gemittelte Daten
+
+  inputMemberData(T, Agent, Type, Value) :- receivedInfo(T, Agent, memberData, Type, Value), not newerReceivedInfoBy(T, Type, Value, Agent),
+    currentRankOrder(RankOrder), #member(Agent, RankOrder).
+
+  inputMemberData(T, Self, Type, Value) :- currentData(Type, Value), self(Self), currentTimeStamp(T).
+  inputMemberData(T, Self, attendanceLevel, AttendanceLevel) :- currentAttendanceLevel(AttendanceLevel), self(Self), currentTimeStamp(T).
+
+
+% TEST: EINGEHENDE KOMMUNIKATION
+
+  % Frühere Rangordnung
+  receivedInfo(4, agentThree, coalitionData, rankOrder, [agentThree, agentTwo, agentSelf, agentOne]).
+
+  % Meldungen über aktuelle Reichweite
+  receivedAnswer(13, agentOne, memberData, withinDirectRange, {agentSelf, agentFive}).
+  receivedAnswer(11, agentTwo, memberData, withinDirectRange, {agentSelf, agentFour}).
+  receivedAnswer(10, agentThree, memberData, withinDirectRange, {agentFour}).
+
+  % Meldungen zur Koalitionsverwaltung
+  receivedInfo(17, agentTwo, memberData, velocity, 39).
+  receivedInfo(17, agentTwo, memberData, lawEnforcement, false).
+  receivedInfo(17, agentTwo, memberData, attendanceLevel, member).
+
+  % Antworten zu Situationen
+  receivedAnswer(12, agentThree, situationData, weatherCondition, bad).
+  receivedAnswer(12, agentThree, situationData, trafficCondition, slow).
+
+  % Meldungen über Ereignisse
+  receivedInfo(13, agentOne, eventData, laneChange, left).
+  receivedInfo(9, agentThree, eventData, laneChange, left).
+
+  % Anfragen (Testweise gleicher Zeitpunkt)
+  receivedRequest(12, agentThree, memberData, withinDirectRange).
+  receivedRequest(12, agentThree, situationData, all).
+
