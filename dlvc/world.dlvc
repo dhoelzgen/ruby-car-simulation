@@ -176,6 +176,10 @@
     fusionBlockIntervall(3).
     sendSeparate(fusion).
 
+
+    % DELAYED: Zur Vereinfachung, weil Kommunikationsmögichkeiten nicht symmetrisch
+    blockRequestFusion.
+
     blockRequestFusion :- currentTimeStamp(T), fusionBlockIntervall(I), Start = T - I, sentInfo(T2, _, fusion, rankOrder, _), T2 > Start.
 
     candidateToAskForFusion(Agent) :- viaDirectRange(Agent), currentRankOrder(RankOrder), not #member(Agent, RankOrder),
@@ -237,7 +241,7 @@
 % SITUATIONEN UND EREIGNISSE: KOALITION
 
   % Anfrage nach erkannten Situationen
-  situationAskIntervall(50).
+  situationAskIntervall(5).
   situationWaitIntervall(2).
 
   isActiveRepresentative :- currentAttendanceLevel(representative), isRepresentative.
@@ -252,8 +256,7 @@
 
 
   % Auswerten von Situationen auf Koalitionsebene (Trigger f. funkt. Komoponente)
-  analyseCoalitionSituation :- timeLastAsked(situationData, TL), situationWaitIntervall(I), SUM = I + TL, currentTimeStamp(T), T = SUM, not T = I.
-
+  analyseCoalitionSituation :- lastSentRequestTime(situationData, all, TL), situationWaitIntervall(I), SUM = I + TL, currentTimeStamp(T), T = SUM, not T = I.
 
   % Weiterleiten an Basisstation
   sendInfo(base, coalitionDefaultData, coalitionSize, CoalitionSize) :- currentCoalitionSize(CoalitionSize), analyseCoalitionSituation, isActiveRepresentative.

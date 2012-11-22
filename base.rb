@@ -8,11 +8,13 @@ class Base
     puts "#{self.class.name}: #{msg}" if DEBUG_MSGS
   end
 
-  def self.log(msg)
-    puts "#{msg}"
-  end
+  class << self
+    def only_arg(beliefs, name)
+      return beliefs[name][0][0]
+    end
 
-  def self.debug(msg)
-    puts "#{msg}" if DEBUG_MSGS
+    def args(beliefs, name)
+      return beliefs[name][0]
+    end
   end
 end

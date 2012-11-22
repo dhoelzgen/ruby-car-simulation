@@ -5,7 +5,7 @@ require 'agent'
 require 'solver'
 require 'fileutils'
 
-SIMULATION_STEPS_LIMIT = 10
+SIMULATION_STEPS_LIMIT = 80
 
 class Simulation < Base
 
@@ -62,12 +62,10 @@ class Simulation < Base
 
       update_beliefs!
 
-      # Intention update
+      # Intention update and action selection
       @agents.each do |id, agent|
-        pp agent.intentions
+        process_intentions(agent)
       end
-
-      # Action selection
 
       # Clean
       @current_step += 1
@@ -81,10 +79,100 @@ class Simulation < Base
     end
   end
 
+  def process_intentions(agent)
+    intentions = agent.intentions
+    return unless intentions.any?
+
+    # Get possible targets
+    communication_targtets = Hash.new
+
+    agent.belief_set['communicationTarget'].each do |name, entity|
+      communication_targtets[name] ||= Array.new
+      communication_targtets[name] << entity
+    end if agent.belief_set.has_key? 'communicationTarget'
+
+    # Perform speechacts
+    intentions.each do |speechact, informations|
+      informations.each do |information|
+        debug "Agent #{agent.id} #{speechact} to #{information[0]}: #{information[1]}/#{information[2]} #{information.length > 3 ? " - " + information[3] : ""}"
+
+        receivers = [information[0]]
+
+        if communication_targtets.has_key? receivers[0]
+          receivers = communication_targtets[receivers[0]]
+        end
+
+        receivers.each do |receiver|
+          perform(
+            agent,
+            receiver,
+            speechact,
+            information[1],
+            information[2],
+            (information.length > 3 ? information[3] : nil)
+          )
+        end
+
+      end
+    end
+  end
+
+  def perform(agent, receiver, speechact, domain, type, value)
+    return unless has_agent_with_name?(receiver) or (receiver == 'base')
+
+    info = nil; feedback = nil
+    info_args = ""; feedback_args = ""
+
+    # DELAYED: Test if target is in range is problematic due to given data
+
+    if speechact == 'sendInfo'
+      info = 'receivedInfo'
+      feedback = 'sentInfo'
+    elsif speechact == 'sendRequest'
+      info = 'receivedRequest'
+      feedback = 'sentRequest'
+    elsif speechact == 'sendAnswer'
+      info = 'receivedAnswer'
+      feedback = 'sentAnswer'
+    else
+      raise "Unknown speech act: #{speechact}"
+    end
+
+    if speechact == 'sendInfo' or speechact == 'sendAnswer'
+      info_args = [@current_step, "car#{agent.id}", domain, type, value].join(',')
+      feedback_args = [@current_step, receiver, domain, type, value].join(',')
+    else
+      info_args = [@current_step, "car#{agent.id}", domain, type].join(',')
+      feedback_args = [@current_step, receiver, domain, type].join(',')
+    end
+
+    # Add feedback (in any case)
+    agent.add_belief(feedback, feedback_args)
+
+    # Test secrecy
+    if agent.check_real "#{info}(#{info_args})", receiver
+      # Adjust View
+      agent.add_performed_action_to_view "#{info}(#{info_args})", receiver
+
+      # Send information
+      if receiver == 'base'
+        # TODO: Collect all info for base station
+        log "Base got info: #{info_args}"
+      else
+        @agents[receiver.gsub('car', '')].add_belief info, info_args
+      end
+    end
+
+  end
+
   protected
 
   def has_agent?(id)
     return @agents.has_key?(id)
+  end
+
+  def has_agent_with_name?(id)
+    return @agents.has_key?(id.gsub('car', ''))
   end
 
   def agent(id)

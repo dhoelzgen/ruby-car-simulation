@@ -12,6 +12,8 @@ class Environment < Base
     debug "Initialized environment"
   end
 
+  # Data related stuff
+
   def loadCanData
     @canData = Hash.new
 

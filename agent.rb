@@ -42,6 +42,14 @@ class Agent < Base
     end
   end
 
+  def add_performed_action_to_view(action, target)
+    target_view = (target == 'base' ? view_basestation_file : view_agent_file(target))
+
+    File.open(target_view, 'a') do |tmp|
+      tmp.puts "#{action}."
+    end
+  end
+
   def update_belief_set!
     @current_belief_set = Solver.get ELP_WORLD, world_file
   end
@@ -51,7 +59,9 @@ class Agent < Base
   end
 
   def intentions
-    intentions = belief_set.delete_if { |name, args| !(%w"sendInfo sendRequest sendAnswer".include? name) }
+    intentions = Hash.new
+    belief_set.each { |name, args| (intentions[name] = args ) if (%w"sendInfo sendRequest sendAnswer".include? name) }
+    return intentions
   end
 
   # Performs potential actions against basestation view
@@ -59,6 +69,17 @@ class Agent < Base
     fill_testfile(action)
     transfer_to_testfile('currentTimeStamp', 'self', 'currentCoalitionSize')
     result = Solver.get ELP_BASESTATION, view_basestation_file, test_file
+    return result.any?
+  end
+
+  # Checks for real actions
+  def check_real(action, target)
+    target_elp = (target == 'base' ? ELP_BASESTATION : ELP_REPRESENTANT)
+    target_view = (target == 'base' ? view_basestation_file : view_agent_file(target))
+
+    fill_testfile(action)
+    transfer_to_testfile('currentTimeStamp', 'self', 'currentCoalitionSize')
+    result = Solver.get target_elp, target_view, test_file
     return result.any?
   end
 
@@ -88,7 +109,7 @@ class Agent < Base
     return "tmp/view_#{@id}_basestation.dlvc"
   end
 
-  def view_agent_field(other)
+  def view_agent_file(other)
     return "tmp/view_#{@id}_#{other}.dlvc"
   end
 

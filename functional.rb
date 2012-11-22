@@ -5,7 +5,7 @@ class Functional < Base
       beliefs = agent.belief_set
 
       if agent.check_potential "performPotentialRepresentantActions"
-        agent.add_belief("attendanceLevel", "#{only_arg(beliefs, 'currentTimeStamp')},representant")
+        agent.add_belief("attendanceLevel", "#{only_arg(beliefs, 'currentTimeStamp')},representative")
       elsif agent.check_potential "performPotentialMemberActions"
         agent.add_belief("attendanceLevel", "#{only_arg(beliefs, 'currentTimeStamp')},member")
       else
@@ -23,8 +23,9 @@ class Functional < Base
         # Extremly simplified version: All in direct range, by id (due to broken comm data and complex system)
         # TODO: To test properly, add at least memberData:attendanceLevel to let an agent resign from this role
         if beliefs.has_key? 'currentWithinDirectRange'
-          agent_list = args(beliefs, 'currentWithinDirectRange')[1] + only_arg(beliefs, 'self')
-          agent_list = agent_list.gsub('[','').gsub(']','').gsub('car','').split('').map{ |i| i.to_i }
+          agent_list = args(beliefs, 'currentWithinDirectRange')[1]
+          agent_list = agent_list.gsub('[','').gsub(']','').gsub('car','').split(',').map{ |i| i.to_i }
+          agent_list << agent.id.to_i
           agent_list.sort!
           agent_list.map! {|a| "car#{a}" }
 
@@ -36,21 +37,14 @@ class Functional < Base
     def coalition_situations(agent)
       # To find situations on coalition level and averaged data
 
+      # DELAYED: Simulation provides no data to infer situations
     end
 
     def coalition_events(agent)
       # To detect events on coalition level
 
+      # DELAYED: Simulation provides no data to infer events
     end
 
-    protected
-
-    def only_arg(beliefs, name)
-      return beliefs[name][0][0]
-    end
-
-    def args(beliefs, name)
-      return beliefs[name][0]
-    end
   end
 end

@@ -10,9 +10,9 @@
 
 % Potentielle Aktionen
 
-  sentInfo(T, Self, coalitionDefaultData, type, value) :- performPotentialRepresentantActions, self(Self), currentTimeStamp(T).
-  sentInfo(T, Self, coalitionSituationData, type, value) :- performPotentialRepresentantActions, self(Self), currentTimeStamp(T).
-  sentInfo(T, Self, coalitionEventData, type, value) :- performPotentialRepresentantActions, self(Self), currentTimeStamp(T).
+  receivedInfo(T, Self, coalitionDefaultData, type, value) :- performPotentialRepresentantActions, self(Self), currentTimeStamp(T).
+  receivedInfo(T, Self, coalitionSituationData, type, value) :- performPotentialRepresentantActions, self(Self), currentTimeStamp(T).
+  receivedInfo(T, Self, coalitionEventData, type, value) :- performPotentialRepresentantActions, self(Self), currentTimeStamp(T).
 
 % Test
 
@@ -20,12 +20,12 @@
 
 % Allgemeine Regeln zum Ableiten verfügbarer Informationen
 
-  positionData(T) :- sentInfo(T, _, coalitionDefaultData, _, _).
-  positionData(T) :- sentInfo(T, _, coalitionSituationData, _, _).
-  positionData(T) :- sentInfo(T, _, coalitionEventData, _, _).
+  positionData(T) :- receivedInfo(T, _, coalitionDefaultData, _, _).
+  positionData(T) :- receivedInfo(T, _, coalitionSituationData, _, _).
+  positionData(T) :- receivedInfo(T, _, coalitionEventData, _, _).
 
-  drivingData(T) :- sentInfo(T, _, coalitionSituationData, _, _).
-  drivingData(T) :- sentInfo(T, _, coalitionEventData, homogenousLaneChange, _).
+  drivingData(T) :- receivedInfo(T, _, coalitionSituationData, _, _).
+  drivingData(T) :- receivedInfo(T, _, coalitionEventData, homogenousLaneChange, _).
 
   newerPositionData(T) :- positionData(T), positionData(T2), T2 > T.
   newerDrivingData(T) :- drivingData(T), drivingData(T2), T2 > T.
@@ -45,5 +45,5 @@
 
 % Hintergrundwissen: k-Anonymity - Zum Herleiten von Informationen über den Repräsentanten aus übertragenen Situationen
 
-  maximumCoalitionSizeToInferPrivateData(4).
+  maximumCoalitionSizeToInferPrivateData(3).
   privateDataOfDriver :-  currentTimeStamp(T), drivingData(T), currentCoalitionSize(Size), maximumCoalitionSizeToInferPrivateData(Maximum), Size <= Maximum.

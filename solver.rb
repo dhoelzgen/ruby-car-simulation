@@ -13,7 +13,17 @@ class Solver
       output.split(', ').each do |predicate|
         if match = predicate.match(/(.*)\((.*)\)/)
           answerset[match[1]] ||= Array.new
-          answerset[match[1]] << match[2].split(',')
+
+          bracket_level = 0
+          arguments = match[2].each_char.map do |c|
+            bracket_level += 1 if c == "["
+            bracket_level -= 1 if c == "]"
+
+            next ';' if c == "," and bracket_level > 0
+            next c
+          end.join
+
+          answerset[match[1]] << arguments.split(',').map{ |arg| arg.gsub(";", ",") }
         else
           answerset[predicate] = true
         end
