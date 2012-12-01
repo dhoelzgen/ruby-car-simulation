@@ -42,7 +42,7 @@ class Simulation < Base
       if com_data = @environment.com_data(@current_step.to_s)
         com_data.each do |id, data|
           if has_agent?(id)
-            agent(id).add_in_range(@current_step, data)
+            agent(id).add_in_range(@current_step, data, @agents.keys)
           end
         end
       end

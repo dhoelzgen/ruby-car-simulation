@@ -29,10 +29,12 @@ class Agent < Base
     end
   end
 
-  def add_in_range(timestamp, data)
+  def add_in_range(timestamp, data, all)
     File.open(world_file, 'a') do |tmp|
       tmp.puts "withinDirectRange(#{timestamp},[#{data.map{|e| "car#{e}"}.join(',')}])."
-      tmp.puts "withinCommRange(#{timestamp},[#{data.map{|e| "car#{e}"}.join(',')}])."
+
+      # All agents are in indirect comm range
+      tmp.puts "withinCommRange(#{timestamp},[#{all.reject{|id| id == self.id}.map{|id| "car#{id}"}.join(',')}])."
     end
   end
 

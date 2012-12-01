@@ -5,13 +5,6 @@
   newerTimestamp(T) :- timeStamp(T), timeStamp(T2), T < T2.
   currentTimeStamp(T) :- timeStamp(T), not newerTimestamp(T).
 
-  % Hinzugefügt, weil Comm Daten kein regelmäßiger Input sind
-  newerCommRange(T) :- withinCommRange(T, _), withinCommRange(T2, _), T < T2.
-  currentWithinCommRange(T, List) :- withinCommRange(T, List), not newerCommRange(T).
-
-  newerDirectRange(T) :- withinDirectRange(T, _), withinDirectRange(T2, _), T < T2.
-  currentWithinDirectRange(T, List) :- withinDirectRange(T, List), not newerDirectRange(T).
-
 % FUNKTIONALE KOMPONENTEN
 
 % SENSORDATEN
@@ -144,16 +137,16 @@
 
   % Vorgehen bei Verlust des Repräsentanten
     % Variante 1: Verbindung abgebrochen (Höchster Verbleibender ist Repräsentant)
-    lostRepresentative :- currentRepresentative(Representative), currentWithinCommRange(T, List), not #member(Representative, List),
+    lostRepresentative :- currentRepresentative(Representative), withinCommRange(T, List), not #member(Representative, List),
       currentTimeStamp(T), not isRepresentative, not lostCoalition.
 
-    nextCoalitionMember(Agent) :- currentWithinCommRange(T, List), #member(Agent, List), currentRankOrder(RankOrder), #member(Agent, RankOrder),
+    nextCoalitionMember(Agent) :- withinCommRange(T, List), #member(Agent, List), currentRankOrder(RankOrder), #member(Agent, RankOrder),
       lostRepresentative, currentTimeStamp(T), car(Agent).
 
     % Variante 2: Initiierte Trennung (Höchster der abgestoßenen ist Repräsentant)
     lostCoalition :- currentRankOrder(RankOrder), self(Self), not #member(Self, RankOrder).
 
-    nextCoalitionMember(Agent) :- currentWithinCommRange(T, List), #member(Agent, List),
+    nextCoalitionMember(Agent) :- withinCommRange(T, List), #member(Agent, List),
       currentRankOrder(RankOrder), not #member(Agent, RankOrder),
       lastRankOrder(LastRankOrder), #member(Agent, LastRankOrder),
       lostCoalition, currentTimeStamp(T), car(Agent).
@@ -164,12 +157,12 @@
   coalitionTimeStamp(C) :- currentTimeStamp(T), becameRepresentative(R), C = T - R, isRepresentative.
 
     % Anfrage nach direkt erreichbaren Agenten
-    sendRequest(coalition, memberData, currentWithinDirectRange) :- isRepresentative, coalitionIntervall(I), coalitionTimeStamp(T), T >= I,
-      lastSentRequestTime(memberData, currentWithinDirectRange, TL), SUM = I + TL, T >= SUM.
+    sendRequest(coalition, memberData, withinDirectRange) :- isRepresentative, coalitionIntervall(I), coalitionTimeStamp(T), T >= I,
+      lastSentRequestTime(memberData, withinDirectRange, TL), SUM = I + TL, T >= SUM.
 
     % Antwort auf Anfrage
-    sendAnswer(representative, memberData, currentWithinDirectRange, AgentList) :- currentWithinDirectRange(T, AgentList), currentTimeStamp(T),
-      lastReceivedRequestTime(memberData, currentWithinDirectRange, R), lastSentAnswerTime(memberData, currentWithinDirectRange, A), R > A, not lostRepresentative.
+    sendAnswer(representative, memberData, withinDirectRange, AgentList) :- withinDirectRange(T, AgentList), currentTimeStamp(T),
+      lastReceivedRequestTime(memberData, withinDirectRange, R), lastSentAnswerTime(memberData, withinDirectRange, A), R > A, not lostRepresentative.
 
     % Verarbeiten der Antwort: Fusion mit neuen Koalitionen
     maximumCoalitionSize(50).
@@ -210,8 +203,8 @@
 
   calculateRankOrder(default) :- isRepresentative, not calculateRankOrder(directRange), currentTimeStamp(T), defaultRankOrderInterval(I), #mod(T,I,0).
 
-  calculateRankOrder(filter) :- lostRepresentative.
-  calculateRankOrder(filter) :- lostCoalition.
+  calculateRankOrder(filterLostRepresentative) :- lostRepresentative.
+  calculateRankOrder(filterLostCoalition) :- lostCoalition.
 
   calculateRankOrder(directRange) :- lastSentRequestTime(memberData, withinDirectRange, TL),
     rangeInformationInterval(I), SUM = I + TL, currentTimeStamp(T), T = SUM, not T = I.
