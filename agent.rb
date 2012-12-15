@@ -6,6 +6,8 @@ class Agent < Base
 
   attr_reader :id
 
+  # Initializes the agent with a set of initial individual beliefs
+  # Adds initial information about other agents in range
   def initialize(id, agents)
     @id = id
     @current_belief_set = Hash.new
@@ -21,6 +23,7 @@ class Agent < Base
     end
   end
 
+  # Adds sensor data to the agents beliefs, given a timestamp
   def perceive(timestamp, data)
     File.open(world_file, 'a') do |tmp|
       data.each do |type, value|
@@ -29,6 +32,7 @@ class Agent < Base
     end
   end
 
+  # Adds communication possibilities to the agents beliefs, given a timestamp
   def add_in_range(timestamp, data, all)
     File.open(world_file, 'a') do |tmp|
       tmp.puts "withinDirectRange(#{timestamp},[#{data.map{|e| "car#{e}"}.join(',')}])."
@@ -38,12 +42,14 @@ class Agent < Base
     end
   end
 
+  # Adds information to the agents beliefs, given a predicate name and its arguments
   def add_belief(name, args)
     File.open(world_file, 'a') do |tmp|
       tmp.puts "#{name}(#{args})."
     end
   end
 
+  # Adds feedback about performed actions to the agents beliefs
   def add_performed_action_to_view(action, target)
     target_view = (target == 'base' ? view_basestation_file : view_agent_file(target))
 
@@ -52,14 +58,17 @@ class Agent < Base
     end
   end
 
+  # Uses the solver to recalculate the current beliefset of the agent
   def update_belief_set!
     @current_belief_set = Solver.get ELP_WORLD, world_file
   end
 
+  # Returns the current beliefset, can be used by other components
   def belief_set
     return @current_belief_set
   end
 
+  # Returns alls predicated in the current beliefset that are intentions
   def intentions
     intentions = Hash.new
     belief_set.each { |name, args| (intentions[name] = args ) if (%w"sendInfo sendRequest sendAnswer".include? name) }

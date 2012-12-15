@@ -5,6 +5,7 @@ PATH_COM_DATA = "input/sensor_car2car.txt"
 
 class Environment < Base
 
+  # Initializes the environment and loads all data
   def initialize
     debug "Loading simulation data"
 
@@ -16,6 +17,7 @@ class Environment < Base
 
   # Data related stuff
 
+  # Loads all sensor input data from file
   def loadCanData
     @canData = Hash.new
 
@@ -33,6 +35,7 @@ class Environment < Base
     debug "Loaded sensor data"
   end
 
+  # Loads all communication possibilities from file
   def loadComData
     @comData = Hash.new
 

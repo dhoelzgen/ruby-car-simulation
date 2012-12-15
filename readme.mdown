@@ -1,0 +1,17 @@
+# Hinweise zur Installation
+
+## Verkehrssimulation
+
+Die Verkehrssimulation ist nicht Bestandteil der Arbeit, jedoch seien hier einige Hinweise zur Installation gegeben.
+
+* Omnet++ muss in der Version 4.2.2 installiert sein
+* Sumo muss in der Version 0.12.3 installiert sein
+* Vor dem Start der Simulation in Omnet++ muss Sumo wie folgt gestartet werden: `cd [...]/CANtraffic/examples/B4scenarioA44 && sumo -c sumo.sumo.cfg`
+* Die Simulation in Omnet++ kann anschließend durch Rechtklick auf die Datei `/CANtraffic/examples/B4scenarioA44/omnetpp.ini` im Omnet++ Explorer und Auswahl von 'Run as Omnet++ Simulation' gestartet werden
+* Sumo stürzt am Ende der Simulation ab und muss für einen erneuten Durchlauf gestartet werden
+
+**Wichtig:** Die von dem Multiagentensystem benötigten Daten für die Kommunikation und Sensoreingaben befinden sich schon in dem Verzeichnis `input`, es ist also nicht notwendig die Verkehrssimulation zu installieren und auszuführen um das Multiagentensystem zu testen.
+
+## Multigentensystem
+
+Der Pfad zu DLVC muss in der Datei `Solver.rb` in der Konstante `DLVC_COMMAND` angegeben werden. Das Multiagentensystem nutzt darüber hinaus keine weiteren externen Bibliotheken und kann mit Ruby 1.8.7 mittels `ruby run.rb` ausgeführt werden. Es werden Schreibrechte für den temporären Ordner `tmp` benötigt, da hier die als Eingabe für DLVC verwendeten Dateien gespeichert werden.

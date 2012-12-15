@@ -100,6 +100,7 @@
   isRepresentative :- currentRepresentative(Representative), self(Self), Representative = Self.
   becameRepresentative(T) :- isRepresentative, lastRepresentative(LastRepresentative), not LastRepresentative = Self,
     lastChangedRankOrder(T), self(Self).
+   becameRepresentative(0) :- isRepresentative, not lastRepresentative(Agent), car(Agent).
 
   withdrewRepresentative(T) :- currentRepresentative(Representative), lastRepresentative(Self), not Representative = Self,
     lastChangedRankOrder(T), self(Self).
@@ -170,7 +171,8 @@
     sendSeparate(fusion).
 
 
-    % DELAYED: Zur Vereinfachung, weil Kommunikationsmögichkeiten nicht symmetrisch
+    % DELAYED: Verfügbare Daten unterscheiden nicht zwischen direkter und indirekter Erreichbarkeit, auf diese
+    %   Weise permanent neue Agenten
     blockRequestFusion.
 
     blockRequestFusion :- currentTimeStamp(T), fusionBlockIntervall(I), Start = T - I, sentInfo(T2, _, fusion, rankOrder, _), T2 > Start.
@@ -182,8 +184,8 @@
       sendInfo(Agent, fusion, rankOrder, RankOrder) :- candidateToAskForFusion(Agent), currentRankOrder(RankOrder), not blockRequestFusion.
 
       % Wenn akzeptabel an Koalition weiterleiten
-      acceptFusionWithRankOrder(ResultingOrder) :- receivedInfo(T, _, fusion, rankOrder, ForeignRankOrder), not ResultingSize > MaxSize,
-        #append(CurrentRankOrder, ForeignRankOrder, ResultingOrder), currentRankOrder(CurrentRankOrder), currentTimeStamp(T),
+      acceptFusionWithRankOrder(ResultingOrder) :- receivedInfo(T1, _, fusion, rankOrder, ForeignRankOrder), not ResultingSize > MaxSize,
+        #append(CurrentRankOrder, ForeignRankOrder, ResultingOrder), currentRankOrder(CurrentRankOrder), currentTimeStamp(T), T1 = T - 1,
         maximumCoalitionSize(MaxSize), #length(ResultingOrder, ResultingSize).
 
       sendInfo(Agent, coalitionData, rankOrder, R) :- acceptFusionWithRankOrder(R), #member(Agent, R), car(Agent).

@@ -9,6 +9,9 @@ SIMULATION_STEPS_LIMIT = 80
 
 class Simulation < Base
 
+  # Initializes the simulation
+  # Creates the temp directory for dlv input files
+  # Initializes environment and empty agent list
   def initialize
     # Clean up
     FileUtils.rm Dir.glob('tmp/*')
@@ -20,6 +23,7 @@ class Simulation < Base
     @current_step = 0
   end
 
+  # Starts the simulation loop
   def run!
     while @current_step < SIMULATION_STEPS_LIMIT
 
@@ -58,6 +62,7 @@ class Simulation < Base
       @agents.each do |id, agent|
         Functional.attendance_level(agent)
         Functional.rank_order(agent)
+        Functional.coalition_situations(agent)
       end
 
       update_beliefs!
@@ -73,12 +78,15 @@ class Simulation < Base
     end
   end
 
+  # Updates the current belief set of all agents currently present in the system
   def update_beliefs!
     @agents.each do |id, agent|
       agent.update_belief_set!
     end
   end
 
+  # Processes the possible intentions
+  # Identifies the selected speech act and selects real targets selected by placeholders
   def process_intentions(agent)
     intentions = agent.intentions
     return unless intentions.any?
@@ -117,6 +125,8 @@ class Simulation < Base
     end
   end
 
+  # Performs the acction according to secrecy preservation
+  # Simulates action first, it is only performed if no secrets are violated
   def perform(agent, receiver, speechact, domain, type, value)
     return unless has_agent_with_name?(receiver) or (receiver == 'base')
 

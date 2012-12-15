@@ -1,6 +1,7 @@
 class Functional < Base
   class << self
 
+    # Calculates the agent's attendance level given its beliefs
     def attendance_level(agent)
       beliefs = agent.belief_set
 
@@ -13,6 +14,8 @@ class Functional < Base
       end
     end
 
+
+    # Calculates the current rank order of the agent's coalition given its beliefs
     def rank_order(agent)
       beliefs = agent.belief_set
 
@@ -22,10 +25,8 @@ class Functional < Base
 
         possible_agents = Array.new
 
-        puts "RANK ARG: #{argument} - #{agent.id}"
-
         # Extremly simplified version: All in direct range, by id (due to broken comm data and complex system)
-        # TODO: To test properly, add at least memberData:attendanceLevel to let an agent resign from this role
+        # DELAYED: Agent steps back from representative role, but simplification prevents proper rank order
         if beliefs.has_key? 'withinCommRange'
           agent_list = beliefs['withinCommRange'].each do |args|
             break args[1] if args[0] == currentTimeStamp
@@ -43,16 +44,27 @@ class Functional < Base
       end
     end
 
+    # Processes individual situations provided by other coalition members and identifies situations on coalition level
     def coalition_situations(agent)
       # To find situations on coalition level and averaged data
 
-      # DELAYED: Simulation provides no data to infer situations
-    end
+      # DELAYED: Real choice of situation not possible due to given data
+      beliefs = agent.belief_set
+      situations = Hash.new
 
-    def coalition_events(agent)
-      # To detect events on coalition level
+      if beliefs.has_key?('inputSituation') && beliefs.has_key?('analyseCoalitionSituation')
+        beliefs['inputSituation'].each do |args|
+          situations[args[1]] ||= Hash.new
+          situations[args[1]][args[2]] ||= 0
+          situations[args[1]][args[2]] += 1
+        end
+      end
 
-      # DELAYED: Simulation provides no data to infer events
+      situations.each do |type, values|
+        values.each do |value, count|
+          agent.add_belief("coalitionSituation", "#{only_arg(beliefs, 'currentTimeStamp')},#{type},#{value}")
+        end
+      end
     end
 
   end

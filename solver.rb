@@ -4,6 +4,8 @@ class Solver
 
   class << self
 
+    # Calculates the answer set given an elp
+    # Limited to process only one answer set
     # Result: { name => [[arg1,arg2, ...], ...], ...}
     def get(*file)
       file.reject! {|f| !File.exists? f }
